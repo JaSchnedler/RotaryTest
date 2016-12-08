@@ -12,12 +12,12 @@ const int pin_A = 5;
 const int pin_B = 6;
 const int INTENSITY = 0;
 const int COLOR = 1;
-const int FIDDLE = 2;
-const int AREA = 3;
-const int TOLERANCE = 4;
-const int PRESET = 5;
-const int PRESETINTENSITY = 5;
-const int PRESETCOLOR = 6;
+//const int FIDDLE = 2;
+const int AREA = 2;
+//const int TOLERANCE = 4;
+const int PRESET = 3;
+const int PRESETINTENSITY = 3;
+const int PRESETCOLOR = 4;
 const int RED = 0;
 const int GREEN = 1;
 const int BLUE = 2;
@@ -49,7 +49,6 @@ bool fromSleep = false;
 
 int SUBMENUMINVAL = 1;
 int SUBMENUMAXVAL = 48;
-int menuLength = 6;
 int intensity = 30;
 int color = 30;
 int fiddle = 20;
@@ -59,8 +58,9 @@ int preset = 0;
 int presetIntensity = 30;
 int presetColor = 30;
 
-int listOfSubmenuBoolsLength = 6;
-int subMenuValsLength = 7;
+int menuLength = 4;
+int listOfSubmenuBoolsLength = 4;
+int subMenuValsLength = 5;
 int areaMenuCounter = 0;
 float lastAreaMenuUpdate = 0;
 int toleranceMenuCounter = 0;
@@ -73,9 +73,9 @@ float latestInteraction = 0;
 //lists of values
 int rgbVals[3];
 int colorMenuVals[3];
-String menuNames[6] = {"Intensity", "Color", "Fiddle", "Area", "Tolerance", "Preset"};
-int submenuVals[7] = {intensity, color, fiddle, area, tolerance, presetIntensity,presetColor}; // 0 = intensity, 1 = colourTemp 2 = fiddling val ...etc...
-bool listOfSubmenuBools[6] = {intensityBool, colorBool, fiddleBool, areaBool, toleranceBool, presetBool}; // 0=intensityBool 1= colorBool ... etc...
+String menuNames[4] = {"Intensity", "Color", "Area", "Preset"};
+int submenuVals[5] = {intensity, color, area, presetIntensity,presetColor}; // 0 = intensity, 1 = colourTemp 2 = fiddling val ...etc...
+bool listOfSubmenuBools[4] = {intensityBool, colorBool, areaBool, presetBool}; // 0=intensityBool 1= colorBool ... etc...
 //Pixels
 Adafruit_NeoPixel stripRing = Adafruit_NeoPixel(NUMPIXRing, stripRingPin);
 Adafruit_NeoPixel stripUp = Adafruit_NeoPixel(NUMPIXSTRIPUP, stripUpPin);
@@ -131,8 +131,7 @@ void loop()  {
     resetStrip(stripUpPin);
     fromSleep = true;
     resetStrip(stripRingPin);
-    Serial.print("formsleep: ");
-    Serial.println(fromSleep);
+
   }
   //printStatus();
 }
@@ -208,7 +207,8 @@ void handleButtonPress(){
   bool lastPressBool = (millis() - latestButtonPress) > 500;
   if(shortpress && lastPressBool && !longpress){
     latestButtonPress = millis();
-    Serial.println("Short press");
+
+    printStatus();
 
     if(menu & !fromSleep){
       //for(int i = 0; i < menuLength; i++){
@@ -247,8 +247,8 @@ to branch to the correct update function.
 void updateCurrentValue(){
   if(menu){
     if(INCREMENT || DECREMENT){
-      if(INCREMENT){if(menuCounter == 5){menuCounter = 0;}else{menuCounter++;}}
-      if(DECREMENT){if(menuCounter == 0){menuCounter = 5;}else{menuCounter--;}}
+      if(INCREMENT){if(menuCounter == menuLength-1){menuCounter = 0;}else{menuCounter++;}}
+      if(DECREMENT){if(menuCounter == 0){menuCounter = menuLength-1;}else{menuCounter--;}}
         setPixelColor(stripRingPin,0,0,0);
       for(int i = 0 ;i < menuLength; i++){
         if(menuCounter == i){
@@ -258,12 +258,9 @@ void updateCurrentValue(){
       }
     }
     if(menuCounter == AREA){displayAreaMenu();}
-    if(menuCounter == TOLERANCE){displayToleranceMenu();}
-
   }
   if(submenu){
     if(INCREMENT || DECREMENT){
-      updateBasedOnMenu(menuCounter);
       for(int i = 0; i < subMenuValsLength;i++){
         if(listOfSubmenuBools[i] == true){
           if(INCREMENT && submenuVals[i] != SUBMENUMAXVAL){
@@ -296,7 +293,7 @@ void updateCurrentValue(){
          Serial.println(menuItem);
          Serial.print("The active boolean is: ");
          Serial.println(listOfSubmenuBools[menuItem]);
-         if(menuItem == AREA || menuItem == TOLERANCE){
+         if(menuItem == AREA){
            updateIntensity(SUBMENUMAXVAL);
          }
  }
@@ -308,7 +305,7 @@ void updateCurrentValue(){
        updateBasedOnMenu(menuItem);
        //Serial.print("The boolean is: ");
        //Serial.println(listOfSubmenuBools[i]);
-       if(menuItem == FIDDLE || menuItem == AREA || menuItem == TOLERANCE){
+       if(menuItem == AREA){
          updateColor(submenuVals[COLOR]);
          updateIntensity(submenuVals[INTENSITY]);
        }
@@ -322,20 +319,15 @@ Takes a submenu which it is supposed to update. This function determines what
 update function to call based on which submenu is currently being altered.
 */
 void updateBasedOnSubmenuVal(int submenuItem){
-  //Serial.println("about to update chosen value");
+  Serial.println("about to update chosen value");
   if(submenuItem == INTENSITY){
     updateIntensity(submenuVals[INTENSITY]);
     displayIntensityMenu();
   }
   if(submenuItem == COLOR){updateColor(submenuVals[COLOR]);}
-  if(submenuItem == FIDDLE){fiddleFunction(submenuVals[FIDDLE]);}
   if(submenuItem == AREA){
     updateArea(submenuVals[AREA]);
     displayAreaMenu();
-  }
-  if(submenuItem == TOLERANCE){
-    updateTolerance(submenuVals[TOLERANCE]);
-    displayToleranceMenu();
   }
   if(submenuItem == PRESET){updatePreset();}
 
@@ -344,15 +336,9 @@ void updateBasedOnSubmenuVal(int submenuItem){
 void updateBasedOnMenu(int menuItem){
   //Serial.println("Branch into the desired display");
   if(menuItem != AREA){areaMenuCounter = 0;}
-  if(menuItem != TOLERANCE){
-    toleranceMenuCounter = 0;
-    growingToleranceFlag = true;
-  }
   if(menuItem == INTENSITY){displayIntensityMenu();}
   if(menuItem == COLOR){displayColorMenu();}
-  if(menuItem == FIDDLE){displayFiddleMenu();}
   if(menuItem == AREA){displayAreaMenu();}
-  if(menuItem == TOLERANCE){displayToleranceMenu();}
   if(menuItem == PRESET){
     displayPresetMenu();
     updatePreset();
@@ -363,9 +349,7 @@ void updateBasedOnMenu(int menuItem){
 void updateBasedOnLongPress(){
   if(menuCounter == INTENSITY){sendIntensity();}
   if(menuCounter == COLOR){sendTemperature();}
-  //if(menuCounter == FIDDLE){displayFiddleMenu();}
   if(menuCounter == AREA){sendAdjustedArea();}
-  //if(menuCounter == TOLERANCE){displayToleranceMenu();}
   if(menuCounter == PRESET){
     savePreset();
 
@@ -374,17 +358,15 @@ void updateBasedOnLongPress(){
 //menu updating functions:
 void displayIntensityMenu(){
   if(listOfSubmenuBools[INTENSITY]){
-    Serial.println("should have low intensity on the menu now");
     for(int i = 0; i < NUMPIXRing ; i++){
       int intens = map(i,0,NUMPIXRing,1,60);
-      Serial.println(intens);
+      //Serial.println(intens);
       stripRing.setPixelColor(i,stripRing.Color(intens,intens,intens));
     }
   }else{
-    Serial.println("should have HIGH intensity on the menu now");
     for(int i = 0; i < NUMPIXRing ; i++){
       int temp = map(i,0,NUMPIXRing,1,200);
-      Serial.println(temp);
+      //Serial.println(temp);
       stripRing.setPixelColor(i,stripRing.Color(temp,temp,temp));
       }
     }
@@ -601,7 +583,7 @@ void fiddleFunction(int val) {
         stripUp.show();
 
         Serial.print("Fiddle value: ");
-        Serial.println(submenuVals[FIDDLE]);
+        //Serial.println(submenuVals[FIDDLE]);
 
 }
 /*DESCRIPTION
@@ -635,17 +617,22 @@ void updatePreset(){
     submenuVals[COLOR] = submenuVals[PRESETCOLOR];
     //Serial.println("Changes the values since the preset was entered");
   }
+  Serial.print("Values of preset are after UPDATE: ");
+  Serial.print(submenuVals[PRESETINTENSITY]);
+  Serial.print("   ,   ");
+  Serial.println(submenuVals[PRESETCOLOR]);
   //Serial.println("should update stripUp");
 }
 //Saves the current light to the preset for future application.
 void savePreset(){
   submenuVals[PRESETINTENSITY] = submenuVals[INTENSITY];
   submenuVals[PRESETCOLOR] = submenuVals[COLOR];
-  Serial.print("Values of preset are: ");
+  Serial.print("Values of preset are after SAVE: ");
   Serial.print(submenuVals[PRESETINTENSITY]);
   Serial.print("   ,   ");
   Serial.println(submenuVals[PRESETCOLOR]);
   acceptPresetBlinks();
+  leaveSubmenu(PRESET);
 }
 
 //Utility functions called by the other functions on demand
@@ -710,8 +697,10 @@ void printStatus(){
   Serial.println(listOfSubmenuBools[INTENSITY]);
   Serial.print(" ColorBool: ");
   Serial.println(listOfSubmenuBools[COLOR]);
-  Serial.print(" FIDDLEbool: ");
-  Serial.println(listOfSubmenuBools[FIDDLE]);
+  Serial.print(" AreaBool: ");
+  Serial.println(listOfSubmenuBools[AREA]);
+  Serial.print(" presetBool: ");
+  Serial.println(listOfSubmenuBools[PRESET]);
   delay(100);
 }
 /*DESCRIPTION
