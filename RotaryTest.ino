@@ -933,7 +933,7 @@ This needs to be developed - most likely a need to branch into a colour, a temp
 and an intensity function.
 */
 void sendTempToCeiling(int temp){
-  for(int i = 0; i <= submenuVals[AREA]; i++ ){
+  for(int i = 18; i <= 18; i++ ){
     sendTemperatureToLamp(latestTemp,i);
   }
 }
@@ -942,7 +942,7 @@ void sendTemperatureToLamp(int temp, int lamp){
   Serial.print("temperature sent to ceiling: ");
   Serial.println(temp);
   //int inValue2 = 6500;
-  int mappedTemp = map(temp, SUBMENUMINVAL, SUBMENUMAXVAL, MINCT, MAXCT);
+  int mappedTemp = map(temp, SUBMENUMINVAL, SUBMENUMAXVAL, MAXCT, MINCT);
   const int arrayLength = 1;
   int values2[arrayLength];
 
@@ -963,10 +963,10 @@ void sendTemperatureToLamp(int temp, int lamp){
   outMessage2.empty();
 
 }
-void sendIntensity(int temp){
+void sendIntensity(int intens){
   const int valsLength = 1;
   int vals[valsLength];
-  vals[0] = (map(temp,SUBMENUMINVAL,SUBMENUMAXVAL,MINDIMLEVEL,MAXDIMLEVEL));
+  vals[0] = (map(intens,SUBMENUMINVAL,SUBMENUMAXVAL,MINDIMLEVEL,MAXDIMLEVEL));
   for(int i = 0; i < submenuVals[AREA]; i++){
     Serial.print("intensity sent to ceiling lamp: ");
     Serial.println(i);
