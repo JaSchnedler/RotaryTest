@@ -17,7 +17,7 @@ const int COLOR = 1;
 const int AREA = 2;
 //const int TOLERANCE = 4;
 const int HISTORY = 4;
-const int PEOPLE = 5;
+const int FAVOURITE = 5;
 const int PRESET = 3;
 
 const int RED = 0;
@@ -44,7 +44,7 @@ int menuCounter = 4;
 
 bool intensityBool = false;
 bool colorBool = false;
-bool peopleBool = false;
+bool favouriteBool = false;
 bool areaBool = false;
 bool historyBool = false;
 bool presetBool = false;
@@ -72,7 +72,7 @@ int currentHistoryColor = 0;
 int currentHistoryIntensity = 0;
 
 int historyVal = 0;
-int peopleVal = 1;
+int favouriteVal = 1;
 int latestTemp = 3000;
 
 int tempInCeiling = 0;
@@ -82,7 +82,7 @@ int currentHistoryVal = 1;
 
 int menuLength = 6;
 int listOfSubmenuBoolsLength = 6;
-int subMenuValsLength = 7;
+int subMenuValsLength = 6;
 int areaMenuCounter = 0;
 float lastAreaMenuUpdate = 0;
 int toleranceMenuCounter = 0;
@@ -105,9 +105,9 @@ int hisListIntensity[4] = {0,0,0,0};
 int hisListColorTemp[4] = {0,0,0,0};
 
 
-String menuNames[6] = {"Intensity", "Color", "Area", "Preset", "History", "People"};
-int submenuVals[6] = {intensityVal, colorVal, areaVal, presetVal, historyVal, peopleVal}; // 0 = intensity, 1 = colourTemp 2 = fiddling val ...etc...
-bool listOfSubmenuBools[6] = {intensityBool, colorBool, areaBool, presetBool, historyBool, peopleBool}; // 0=intensityBool 1= colorBool ... etc...
+String menuNames[6] = {"Intensity", "Color", "Area", "Preset", "History", "Favourites"};
+int submenuVals[6] = {intensityVal, colorVal, areaVal, presetVal, historyVal, favouriteVal}; // 0 = intensity, 1 = colourTemp 2 = fiddling val ...etc...
+bool listOfSubmenuBools[6] = {intensityBool, colorBool, areaBool, presetBool, historyBool, favouriteBool}; // 0=intensityBool 1= colorBool ... etc...
 //Pixels
 Adafruit_NeoPixel stripRing = Adafruit_NeoPixel(NUMPIXRing, stripRingPin);
 Adafruit_NeoPixel stripUp = Adafruit_NeoPixel(NUMPIXSTRIPUP, stripUpPin);
@@ -128,18 +128,26 @@ uint32_t his1 = stripRing.Color(255,125,0);
 uint32_t his2 = stripRing.Color(200,200,0);
 uint32_t his3 = stripRing.Color(100,100,200);
 uint32_t sectionColor = stripRing.Color(0,0,255);
+uint32_t sectionColor2 = stripRing.Color(255,0,255);
 
 
+uint32_t favourite1 = stripRing.Color(255,60,60);
+uint32_t favourite2 = stripRing.Color(200,100,100);
+uint32_t favourite3 = stripRing.Color(200,200,200);
+uint32_t favouritesList[3] = {favourite1, favourite2, favourite3};
 
 unsigned int localPort = 8888;
 UDP Udp;
 IPAddress remoteIPPacketSender(192,168,1,14);
-IPAddress ENLIGHT_IP(192,168,1,151);
-int ENLIGHT_PORT = 11000;
+IPAddress ENLIGHT_IP_LIGHTLAB(192,168,1,151);
+IPAddress ENLIGHT_IP_MUJIPLAYER(192,168,1,102);
+int ENLIGHT_PORT_MUJIPLAYER = 12001;
+int ENLIGHT_PORT_LIGTLAB = 11000;
 int packetSenderPort = 55056;
 int processingPort = 12000;
-
-
+int activeNetwork = 0;
+IPAddress ipList[2] = {ENLIGHT_IP_LIGHTLAB,ENLIGHT_IP_MUJIPLAYER};
+int portList[2] = {ENLIGHT_PORT_LIGTLAB, ENLIGHT_PORT_MUJIPLAYER};
 
 void setup()  {
   Udp.begin(localPort);
@@ -155,6 +163,7 @@ void setup()  {
 
   Serial.begin (9600);
   Serial.println("start");
+  Serial.println(WiFi.SSID());
   stripRing.begin();
   stripUp.begin();
   checkHardware();
@@ -166,6 +175,17 @@ void setup()  {
     Serial.println(submenuVals[i]);
   }
   latestInteraction = millis();
+  String breakout = "Breakout";
+  String ssid = WiFi.SSID();
+  if(breakout == ssid){
+    activeNetwork = 1;
+    sectionColor = sectionColor2;
+    Serial.println("on breakout, changes credetials");
+    Serial.println(ipList[activeNetwork]);
+    Serial.println(portList[activeNetwork]);
+  }else{
+    activeNetwork = 0;
+  }
 }
 
 void loop()  {
@@ -321,6 +341,7 @@ void updateCurrentValue(){
             submenuVals[i] = submenuVals[i]+1;
             updateBasedOnSubmenuVal(i);
             Serial.println("incremented ");
+            Serial.println(i);
             Serial.println(submenuVals[i]);
           }
           if(DECREMENT && submenuVals[i] != SUBMENUMINVAL){
@@ -389,7 +410,7 @@ void updateBasedOnSubmenuVal(int submenuItem){
   }
   if(submenuItem == PRESET){updatePreset();}
   if(submenuItem == HISTORY){updateHistory();}
-  if(submenuItem == PEOPLE){updatePeople();}
+  if(submenuItem == FAVOURITE){updateFavourites();}
   }
 
 void updateBasedOnMenu(int menuItem){
@@ -399,8 +420,8 @@ void updateBasedOnMenu(int menuItem){
   if(menuItem == COLOR){displayColorMenu();}
   if(menuItem == AREA){displayAreaMenu();}
   if(menuItem == HISTORY){displayHistoryMenu();}
-  if(menuItem == PEOPLE){displayPeopleMenu();}
-  if(menuItem == PRESET && menuItem != HISTORY && menuItem != PEOPLE){
+  if(menuItem == FAVOURITE){displayFavouritesMenu();}
+  if(menuItem == PRESET && menuItem != HISTORY && menuItem != FAVOURITE){
     displayPresetMenu();
     updatePreset();
   }else{
@@ -442,8 +463,8 @@ void takeActionBasedOnLongPress(){
     //sendToCeilingBlinks();
     //leaveSubmenu(HISTORY);
   }
-  if(menuCounter == PEOPLE && listOfSubmenuBools[PEOPLE]){
-    //leaveSubmenu(PEOPLE);
+  if(menuCounter == FAVOURITE && listOfSubmenuBools[FAVOURITE]){
+    //leaveSubmenu(FAVOURITE);
     //do nothing at present
   }
 
@@ -498,8 +519,7 @@ void displayFiddleMenu(){
 void displayAreaMenu(){
   bool areaAnimationTimer = (currentTime - lastAreaMenuUpdate) > 200;
   int midPixel = NUMPIXRing/2;
-  int greenIntensity = 60;
-  if(listOfSubmenuBools[AREA]){greenIntensity = 200;}
+  int greenIntensity = 200;
   if(areaAnimationTimer){
     if((midPixel - areaMenuCounter) >= 0 && (midPixel + areaMenuCounter) <= NUMPIXRing){
       stripRing.setPixelColor(midPixel + areaMenuCounter , stripRing.Color(0,greenIntensity,0));
@@ -572,49 +592,17 @@ void displayHistoryMenu(){
   stripRing.show();
   delay(30);
 }
-void displayPeopleMenu(){
-  if(listOfSubmenuBools[PEOPLE]){magentaRing = stripRing.Color(255, 0, 255);}
-  else{magentaRing = stripRing.Color(100, 0, 100);}
+void displayFavouritesMenu(){
 
-  stripRing.setPixelColor(0,sectionColor);
-  stripRing.setPixelColor(NUMPIXRing-1,noColor);
-  stripRing.setPixelColor(1,noColor);
-  if(submenuVals[PEOPLE] == 1){
-    for(int i = 2; i<NUMPIXRing-1;i++){
-      stripRing.setPixelColor(i,magentaRing);
+  for(int i = 0; i < NUMPIXRing-1; i++){
+    if(i<(NUMPIXRing-1)/3){
+      stripRing.setPixelColor(i,favourite1);
     }
-  }
-  if(submenuVals[PEOPLE] == 2){
-    for(int i = 2; i < NUMPIXRing-1; i++){
-      if(i == NUMPIXRing/2){stripRing.setPixelColor(i,noColor);}
-      else{stripRing.setPixelColor(i,magentaRing);}
+    else if(i<((NUMPIXRing-1)/3)*2){
+      stripRing.setPixelColor(i,favourite2);
     }
-  }
-  if(submenuVals[PEOPLE] == 3){
-    for(int i = 2; i < NUMPIXRing-1; i++){
-      if(i == NUMPIXRing/3){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/3)*2){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing)){stripRing.setPixelColor(i,noColor);}
-      else{stripRing.setPixelColor(i,magentaRing);}
-    }
-  }
-  if(submenuVals[PEOPLE] == 4){
-    for(int i = 2; i < NUMPIXRing-1; i++){
-      if(i == NUMPIXRing/4){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/4)*2){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/4)*3){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing)){stripRing.setPixelColor(i,noColor);}
-      else{stripRing.setPixelColor(i,magentaRing);}
-    }
-  }
-  if(submenuVals[PEOPLE] == 5){
-    for(int i = 2; i < NUMPIXRing-1; i++){
-      if(i == NUMPIXRing/5){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/5)*2){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/5)*3){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing/5)*4){stripRing.setPixelColor(i,noColor);}
-      else if(i == (NUMPIXRing)){stripRing.setPixelColor(i,noColor);}
-      else{stripRing.setPixelColor(i,magentaRing);}
+    else{
+      stripRing.setPixelColor(i,favourite3);
     }
   }
   stripRing.show();
@@ -666,13 +654,13 @@ value. In the end the colour is applied using the function setPixelColor()
 */
 void updateColor(int tempPercentage){
   int readyVal = 9000 - (map(tempPercentage,SUBMENUMINVAL,SUBMENUMAXVAL,1,100) * ((9000-1000)/100));
-  Serial.print("readyVal: ");
-  Serial.println(readyVal);
+  //Serial.print("readyVal: ");
+  //Serial.println(readyVal);
   int temp = readyVal / 100;
-  Serial.print("TemperatureBeforeCalc: ");
-  Serial.println(latestTemp);
+  //Serial.print("TemperatureBeforeCalc: ");
+  //Serial.println(latestTemp);
   float r, g, b;
-  latestTemp = readyVal;
+  latestTemp = tempPercentage;
 
   if ( temp <= 66 ) {
     r = 255;
@@ -696,10 +684,10 @@ void updateColor(int tempPercentage){
         rgbVals[BLUE] = int(b);
         updateIntensity(submenuVals[INTENSITY]);
         //setPixelColor(stripUpPin,rgbVals[0],rgbVals[1],rgbVals[2]);
-        Serial.print("Updated Color: ");
-        Serial.println(rgbVals[RED]);
-        Serial.println(rgbVals[GREEN]);
-        Serial.println(rgbVals[BLUE]);
+        //Serial.print("Updated Color: ");
+        //Serial.println(rgbVals[RED]);
+        //Serial.println(rgbVals[GREEN]);
+        //Serial.println(rgbVals[BLUE]);
 }
 void updateMenuColor(int tempPercentage){
   int readyVal = 3000 - tempPercentage * ((2500)/100);
@@ -772,8 +760,8 @@ void updateTolerance(int tolerance){
   stripUp.show();
 }
 void updateHistory(){
-  Serial.println("Should update History now, historyVal");
-  Serial.println(submenuVals[HISTORY]);
+  //Serial.println("Should update History now, historyVal");
+  //Serial.println(submenuVals[HISTORY]);
   if(submenuVals[HISTORY] < 16){
     currentHistoryVal = 1;
   }else if(submenuVals[HISTORY] >= 16 && submenuVals[HISTORY] < 32){
@@ -788,31 +776,23 @@ void updateHistory(){
   }
   stripUp.show();
 }
-void updatePeople(){
-  /*
-  if(submenuVals[PEOPLE] == 1){
+void updateFavourites(){
+  //Serial.println("Should update favourites now, favouriteVal: ");
+  //Serial.println(submenuVals[FAVOURITE]);
+  if(submenuVals[FAVOURITE] < 16){
     for(int i = 0; i<NUMPIXSTRIPUP;i++){
-      stripUp.setPixelColor(i,magentaUp);
+      stripUp.setPixelColor(i,favouritesList[0]);
     }
-    stripUp.show();
-  }
-  if(submenuVals[PEOPLE] == 2){
-    for(int i = 0; i < NUMPIXSTRIPUP; i++){
-      if(i < NUMPIXSTRIPUP/2){stripUp.setPixelColor(i,magentaUp);}
-      if(i > NUMPIXSTRIPUP/2){stripUp.setPixelColor(i,yellowUp);}
+  }else if(submenuVals[FAVOURITE] >= 16 && submenuVals[FAVOURITE] < 32){
+    for(int i = 0; i<NUMPIXSTRIPUP;i++){
+      stripUp.setPixelColor(i,favouritesList[1]);
     }
-    stripUp.show();
-    delay(20);
-  }
-  if(submenuVals[PEOPLE] == 3){
-    for(int i = 0; i < NUMPIXSTRIPUP; i++){
-      if(i < NUMPIXSTRIPUP/3){stripUp.setPixelColor(i,magentaUp);}
-      if(i > NUMPIXSTRIPUP/3 && i < (NUMPIXSTRIPUP/3)*2){stripUp.setPixelColor(i,yellowUp);}
-      if(i > (NUMPIXSTRIPUP/3)*2){stripUp.setPixelColor(i,smileyGreenUp);}
+  }else{
+    for(int i = 0; i<NUMPIXSTRIPUP;i++){
+      stripUp.setPixelColor(i,favouritesList[2]);
     }
-    stripUp.show();
   }
-  */
+  stripUp.show();
 }
 //updates the look of the dial during presetmenu
 void updatePreset(){
@@ -953,16 +933,16 @@ This needs to be developed - most likely a need to branch into a colour, a temp
 and an intensity function.
 */
 void sendTempToCeiling(int temp){
-  for(int i = 1; i <= submenuVals[AREA]; i++ ){
+  for(int i = 0; i <= submenuVals[AREA]; i++ ){
     sendTemperatureToLamp(latestTemp,i);
   }
 }
 
 void sendTemperatureToLamp(int temp, int lamp){
-  Serial.print("temperature sent to ceiling lamp: ");
+  Serial.print("temperature sent to ceiling: ");
   Serial.println(temp);
   //int inValue2 = 6500;
-  int mappedTemp = map(temp, 1000, MAXCT, MINCT, MAXCT);
+  int mappedTemp = map(temp, SUBMENUMINVAL, SUBMENUMAXVAL, MINCT, MAXCT);
   const int arrayLength = 1;
   int values2[arrayLength];
 
@@ -978,7 +958,7 @@ void sendTemperatureToLamp(int temp, int lamp){
     for(int v = 0; v < arrayLength; ++v){
       outMessage2.addInt((int) values2[v]);
     }
-  outMessage2.send(Udp, ENLIGHT_IP, ENLIGHT_PORT);
+  outMessage2.send(Udp, ipList[activeNetwork], portList[activeNetwork]);
   delay(150);
   outMessage2.empty();
 
@@ -990,14 +970,16 @@ void sendIntensity(int temp){
   for(int i = 0; i < submenuVals[AREA]; i++){
     Serial.print("intensity sent to ceiling lamp: ");
     Serial.println(i);
+    Serial.print("intensity: ");
+    Serial.println(vals[0]);
     OSCMessage om("/Enlight/setDimLevel");
     om.addInt(i);
     om.addInt(valsLength);
     for(int j = 0; j <= sizeof(vals); j++){
       om.addInt((int) vals[j]);
     }
-    om.prinOutputDatas();
-    om.send(Udp,ENLIGHT_IP,ENLIGHT_PORT);
+    //om.prinOutputDatas();
+    om.send(Udp,ipList[activeNetwork],portList[activeNetwork]);
     delay(50);
     om.empty();
 }
