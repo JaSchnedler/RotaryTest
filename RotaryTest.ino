@@ -92,6 +92,7 @@ int currentAssignedSection = 0;
 
 float latestButtonPress = 0;
 float latestInteraction = 0;
+float wifiCheckTimer = 0;
 int longpressCounter = 0;
 
 //lists of values
@@ -104,6 +105,7 @@ int hisListBlue[4] = {0, 0, 0, 0};
 int hisListIntensity[4] = {0,0,0,0};
 int hisListColorTemp[4] = {0,0,0,0};
 
+int demoDayLights[2] = {14,18};
 
 String menuNames[6] = {"Intensity", "Color", "Area", "Preset", "History", "Favourites"};
 int submenuVals[6] = {intensityVal, colorVal, areaVal, presetVal, historyVal, favouriteVal}; // 0 = intensity, 1 = colourTemp 2 = fiddling val ...etc...
@@ -175,6 +177,25 @@ void setup()  {
     Serial.println(submenuVals[i]);
   }
   latestInteraction = millis();
+  checkWIFI();
+}
+
+void loop()  {
+  if(millis()-wifiCheckTimer > 60000){checkWIFI();wifiCheckTimer = millis();}
+  updateRotary(); //either increments or decreanses overall counter.
+  handleButtonPress();
+  if(millis()-latestInteraction < 30000){
+    updateCurrentValue();  //address the current value by spinning.
+    fromSleep = false;
+  }else{
+    resetStrip(stripUpPin);
+    fromSleep = true;
+    resetStrip(stripRingPin);
+  }
+
+  //printStatus();
+}
+void checkWIFI(){
   String breakout = "Breakout";
   String ssid = WiFi.SSID();
   if(breakout == ssid){
@@ -186,23 +207,6 @@ void setup()  {
   }else{
     activeNetwork = 0;
   }
-}
-
-void loop()  {
-
-  updateRotary(); //either increments or decreanses overall counter.
-  handleButtonPress();
-  if(millis()-latestInteraction < 30000){
-    updateCurrentValue();  //address the current value by spinning.
-    fromSleep = false;
-  }else{
-    resetStrip(stripUpPin);
-    fromSleep = true;
-    resetStrip(stripRingPin);
-
-  }
-
-  //printStatus();
 }
 //Loop functions, called in the loop.
 /*DESCRIPTION
@@ -631,8 +635,6 @@ void sendToCeilingBlinks(int i){
     }
 }
 
-
-
 //Update functions called to update the pixel strips
 /*DESCRIPTION
 This function takes a value from 0 - 100 and updates the intensity of the light
@@ -933,8 +935,10 @@ This needs to be developed - most likely a need to branch into a colour, a temp
 and an intensity function.
 */
 void sendTempToCeiling(int temp){
-  for(int i = 18; i <= 18; i++ ){
-    sendTemperatureToLamp(latestTemp,i);
+  int lampsToAffect = 0;
+  if(submenuVals[AREA]>24){lampsToAffect = 1;}
+  for(int i = 0; i <= lampsToAffect; i++ ){
+    sendTemperatureToLamp(latestTemp,demoDayLights[i]);
   }
 }
 
@@ -964,16 +968,18 @@ void sendTemperatureToLamp(int temp, int lamp){
 
 }
 void sendIntensity(int intens){
+  int lampsToAffect = 1;
+  if(submenuVals[AREA]>24){lampsToAffect = 2;}
   const int valsLength = 1;
   int vals[valsLength];
   vals[0] = (map(intens,SUBMENUMINVAL,SUBMENUMAXVAL,MINDIMLEVEL,MAXDIMLEVEL));
-  for(int i = 0; i < submenuVals[AREA]; i++){
+  for(int i = 0; i < lampsToAffect; i++){
     Serial.print("intensity sent to ceiling lamp: ");
     Serial.println(i);
     Serial.print("intensity: ");
     Serial.println(vals[0]);
     OSCMessage om("/Enlight/setDimLevel");
-    om.addInt(i);
+    om.addInt(demoDayLights[i]);
     om.addInt(valsLength);
     for(int j = 0; j <= sizeof(vals); j++){
       om.addInt((int) vals[j]);
